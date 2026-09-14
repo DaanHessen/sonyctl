@@ -10,6 +10,9 @@
 #   sonyctl-waybar.sh voice-toggle    toggle focus on voice
 #   sonyctl-waybar.sh eq <preset>     off|bright|excited|mellow|relaxed|vocal|
 #                                     treble|bass|speech|custom|user1|user2
+#   sonyctl-waybar.sh dsee-toggle     toggle DSEE Extreme upscaling
+#   sonyctl-waybar.sh voice-toggle-guide  toggle spoken notifications
+#   sonyctl-waybar.sh volume <0-30>   set playback volume
 #   sonyctl-waybar.sh menu            full control menu (walker / wofi)
 #   sonyctl-waybar.sh reconnect       drop and re-open the sonyctl session
 #
@@ -195,6 +198,13 @@ print_module() {
              "Focus on voice  " + (if .noise_control.focus_on_voice then "On" else "Off" end)
            else empty end),
           (if .equalizer != null then "Equalizer       \($eq_label)" else empty end),
+          (if .volume != null then "Volume          \(.volume.level)/30" else empty end),
+          (if .dsee != null then
+             "DSEE            " + (if .dsee.enabled then "On" else "Off" end)
+           else empty end),
+          (if .voice_guidance != null then
+             "Voice guidance  " + (if .voice_guidance.enabled then "On" else "Off" end)
+           else empty end),
           "",
           "<small>Click: cycle noise control · Middle: ambient level · Right: menu</small>"
         ] | join("\n"))
@@ -290,6 +300,29 @@ voice_toggle() {
   refresh
 }
 
+# toggle API_PATH STATUS_FIELD LABEL
+toggle_setting() {
+  local status current next
+  status=$(require_status) || exit 1
+  current=$(jq -r ".$2.enabled" <<<"$status")
+  [[ $current == true ]] && next=false || next=true
+  if api POST "$1" "{\"enabled\":$next}" >/dev/null; then
+    notify "$3" "$(on_off "$next")"
+  else
+    notify "$3" "Failed to switch"
+  fi
+  refresh
+}
+
+set_volume() {
+  if api POST /api/volume "{\"level\":$1}" >/dev/null; then
+    notify "Volume" "$1/30"
+  else
+    notify "Volume" "Failed to switch"
+  fi
+  refresh
+}
+
 set_eq() {
   if api POST /api/eq "{\"preset\":\"$1\"}" >/dev/null; then
     notify "Equalizer" "$(eq_label "$1")"
@@ -340,6 +373,12 @@ menu() {
     items+="󰍬  Focus on voice   $(on_off "$(jq -r '.noise_control.focus_on_voice' <<<"$status")")\n"
   fi
   [[ -n $eq ]] && items+="󰺢  Equalizer        $(eq_label "$eq")\n"
+  jq -e '.volume != null' <<<"$status" >/dev/null &&
+    items+="󰕾  Volume           $(jq -r '.volume.level' <<<"$status")/30\n"
+  jq -e '.dsee != null' <<<"$status" >/dev/null &&
+    items+="󰹊  DSEE             $(on_off "$(jq -r '.dsee.enabled' <<<"$status")")\n"
+  jq -e '.voice_guidance != null' <<<"$status" >/dev/null &&
+    items+="󰍪  Voice guidance   $(on_off "$(jq -r '.voice_guidance.enabled' <<<"$status")")\n"
   items+="󰑓  Reconnect"
 
   choice=$(pick "Headphones" "$items") || exit 0
@@ -348,6 +387,9 @@ menu() {
     *"Ambient level"*) menu_ambient "$status" ;;
     *"Focus on voice"*) voice_toggle ;;
     *Equalizer*) menu_eq "$eq" ;;
+    *Volume*) menu_volume "$status" ;;
+    *DSEE*) toggle_setting /api/dsee dsee "DSEE" ;;
+    *"Voice guidance"*) toggle_setting /api/voice-guidance voice_guidance "Voice guidance" ;;
     *Reconnect*) reconnect ;;
   esac
 }
@@ -376,6 +418,16 @@ menu_ambient() {
   esac
 }
 
+menu_volume() {
+  local current items="" level choice
+  current=$(jq -r '.volume.level // 0' <<<"$1")
+  for level in 0 5 10 15 20 25 30; do
+    items+="$(mark "$current" "$level")  $level\n"
+  done
+  choice=$(pick "Volume" "${items%\\n}") || exit 0
+  set_volume "${choice##*  }"
+}
+
 menu_eq() {
   local presets=(off bright excited mellow relaxed vocal treble bass speech custom user1 user2)
   local items="" preset choice
@@ -398,6 +450,9 @@ case "${1:-status}" in
   ambient) set_ambient "${2:?level}" ;;
   voice-toggle) voice_toggle ;;
   eq) set_eq "${2:?preset}" ;;
+  volume) set_volume "${2:?level}" ;;
+  dsee-toggle) toggle_setting /api/dsee dsee "DSEE" ;;
+  voice-toggle-guide) toggle_setting /api/voice-guidance voice_guidance "Voice guidance" ;;
   menu) menu ;;
   reconnect) reconnect ;;
   *) sed -n '2,20p' "$0" >&2; exit 2 ;;
