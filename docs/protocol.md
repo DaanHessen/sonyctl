@@ -237,6 +237,15 @@ Observed: model code `HP002`, serial `0000000002172598`, device id
 `0E71BFFEED8CE99D`, and 15 firmware component versions from `VGIDLPB0601` to
 `VGIDLPB06F0`.
 
+## A warning about opcode numbering
+
+Sony reuses opcodes between protocol generations, and the meanings do not
+match. In Gadgetbridge's v1 numbering `0x22` is `POWER_OFF`; on this v2 device
+`22 00` is the battery request and answers with `23 00 <percent> <charging>`.
+The battery reading here was confirmed against BlueZ's own percentage before
+being trusted. Anyone porting to a v1 device should not assume these opcodes
+carry over.
+
 ## A warning about sweeping
 
 Do not sweep setter opcodes. Sony numbers each family `n` get, `n+1` return,
@@ -263,6 +272,21 @@ sub-type `0x0c` with a 4-byte payload; `fa 0c` does not answer here, and the
 sub-types that do answer (`fa 03`, `fa 06`) carry 7 and 8 byte payloads that do
 not match that layout. Wearing detection (`f6 01`), adaptive volume (`f6 0a`)
 and quick access (`f6 0d`) do not answer either.
+
+## Other reads confirmed
+
+| Request | Reply | Meaning |
+|---|---|---|
+| `36 02` | `37 02 05 HP002 0b MDRID295100 03 CE7 00 10 <serial> 14 14 10 <device id>` | Extended identity, including the MDR id and a region code |
+| `10 04` | `11 04` + ASCII `58:1C:F8:B7:B6:59` + `2E7D3CD2` | The Bluetooth address of the host it is connected to, not a pairing list |
+| `06 00` | `07 00 17` + 23 pairs | Supported function table |
+
+No audio-codec command answers on this model. The reference names `0x18` as
+`AUDIO_CODEC_REQUEST`, but neither table replies to it on any sub-type tried,
+so the active codec is not readable here.
+
+Only sub-type `04` of `0x10` answers, and it returns a single entry, so there
+is no multipoint device list to read.
 
 ## Answers but undecoded
 
