@@ -59,6 +59,11 @@ pub struct ToggleRequest {
 }
 
 #[derive(Deserialize)]
+pub struct VolumeRequest {
+    pub level: u8,
+}
+
+#[derive(Deserialize)]
 pub struct EqPresetRequest {
     pub preset: EqPreset,
 }
@@ -74,6 +79,7 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/eq/bands", post(set_eq_bands))
         .route("/api/dsee", get(get_dsee).post(set_dsee))
         .route("/api/voice-guidance", get(get_voice).post(set_voice))
+        .route("/api/volume", get(get_volume).post(set_volume))
         .route("/api/detect", get(detect))
         // Explicit method routers above already cover these paths; the two
         // below keep the DELETE and POST helpers referenced.
@@ -186,4 +192,15 @@ async fn set_voice(
     Json(body): Json<ToggleRequest>,
 ) -> Result<Response, SonyError> {
     Ok(Json(state.manager.set_voice_guidance(body.enabled).await?).into_response())
+}
+
+async fn get_volume(State(state): State<ApiState>) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.volume().await?).into_response())
+}
+
+async fn set_volume(
+    State(state): State<ApiState>,
+    Json(body): Json<VolumeRequest>,
+) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.set_volume(body.level).await?).into_response())
 }

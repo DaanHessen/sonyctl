@@ -12,7 +12,7 @@ use crate::{
     error::SonyError,
     types::{
         AncMode, Battery, DeviceStatus, EqBands, EqPreset, Equalizer, NoiseControl, SessionInfo,
-        Toggle,
+        Toggle, Volume,
     },
 };
 
@@ -230,6 +230,22 @@ impl SonyManager {
         }
     }
 
+    pub async fn volume(&self) -> Result<Volume, SonyError> {
+        let reply = self
+            .exchange(commands::volume_request(), commands::VOLUME_ACCEPTS)
+            .await?;
+        commands::parse_volume(&reply)
+    }
+
+    pub async fn set_volume(&self, level: u8) -> Result<Volume, SonyError> {
+        let payload = commands::set_volume(level)?;
+        match self.exchange(payload, commands::VOLUME_ACCEPTS).await {
+            Ok(reply) => commands::parse_volume(&reply),
+            Err(SonyError::Timeout(_)) => self.volume().await,
+            Err(err) => Err(err),
+        }
+    }
+
     /// Everything the device reports, in one call. A feature the model does
     /// not support is reported as `null` rather than failing the whole call.
     pub async fn status(&self) -> Result<DeviceStatus, SonyError> {
@@ -241,6 +257,7 @@ impl SonyManager {
             equalizer: optional(self.equalizer().await)?,
             dsee: optional(self.dsee().await)?,
             voice_guidance: optional(self.voice_guidance().await)?,
+            volume: optional(self.volume().await)?,
         })
     }
 }

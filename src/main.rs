@@ -74,6 +74,11 @@ enum Commands {
         #[command(subcommand)]
         action: ToggleCommand,
     },
+    /// Playback volume, 0-30.
+    Volume {
+        #[command(subcommand)]
+        action: VolumeCommand,
+    },
     /// Equalizer.
     Eq {
         #[command(subcommand)]
@@ -126,6 +131,12 @@ enum AmbientCommand {
         #[arg(long)]
         focus_on_voice: Option<bool>,
     },
+}
+
+#[derive(Subcommand)]
+enum VolumeCommand {
+    Get,
+    Set { level: u8 },
 }
 
 #[derive(Subcommand)]
@@ -296,6 +307,20 @@ async fn main() -> Result<()> {
                     Method::POST,
                     "/api/voice-guidance",
                     Some(json!({ "enabled": enabled })),
+                )
+                .await?,
+            ),
+        },
+        Commands::Volume { action } => match action {
+            VolumeCommand::Get => {
+                print(connected(&endpoint, Method::GET, "/api/volume", None::<()>).await?)
+            }
+            VolumeCommand::Set { level } => print(
+                connected(
+                    &endpoint,
+                    Method::POST,
+                    "/api/volume",
+                    Some(json!({ "level": level })),
                 )
                 .await?,
             ),

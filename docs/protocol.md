@@ -202,6 +202,39 @@ byte against the opcodes that command can answer with, and skip anything else.
 Ignoring this produces sporadic decode failures that do not reproduce under
 the raw probe.
 
+## Volume
+
+| Direction | Payload |
+|---|---|
+| Get | `a6 20` |
+| Return | `a7 20 <level>` |
+| Set | `a8 20 <level>` |
+| Notify | `a9 20 <level>` |
+
+Range is 0 to 30 (`0x1e`), confirmed by probing the bounds. Unlike the ambient
+level, the headset does clamp here: `0x20` and `0xff` both come back as `0x1e`.
+sonyctl rejects anything above 30 rather than report a level that was not
+applied.
+
+## Present but not writable on this model
+
+These answer a read but reject every write, so sonyctl exposes neither:
+
+| Feature | Read | Value | Write result |
+|---|---|---|---|
+| Button assignment | `f6 03` | `f7 03 02 ff ff`, both buttons off | `f8 03 02 ...` is ignored; the value never changes |
+| Voice assistant | `f6 04` | `f7 04 30`, mobile device | `f8 04 31` is acknowledged with `f9 04 30`; the value never changes |
+
+Button mode codes, per Gadgetbridge: `0xff` off, `0x00` and `0x35` ambient
+sound control, `0x20` playback control, `0x10` volume control. Voice assistant
+codes: `0xff` off, `0x30` mobile device, `0x31` Google Assistant, `0x32` Alexa.
+
+Speak-to-Chat is absent from this model. The reference expects its config on
+sub-type `0x0c` with a 4-byte payload; `fa 0c` does not answer here, and the
+sub-types that do answer (`fa 03`, `fa 06`) carry 7 and 8 byte payloads that do
+not match that layout. Wearing detection (`f6 01`), adaptive volume (`f6 0a`)
+and quick access (`f6 0d`) do not answer either.
+
 ## Answers but undecoded
 
 These respond with plausible payloads but their fields have not been
@@ -209,16 +242,13 @@ confirmed, so nothing in sonyctl reads or writes them:
 
 | Request | Reply | Likely feature (per Gadgetbridge naming, unverified) |
 |---|---|---|
-| `f6 03` | `f7 03 02 ff ff` | Automatic power off / button mode |
-| `f6 04` | `f7 04 30` | " |
-| `f6 05` | `f7 05 01` | " |
-| `f6 06` | `f7 06 00 00 03 00 00 00` | " |
-| `f6 07` | `f7 07 00` | " |
-| `f6 09` | `f7 09 00` | " |
+| `f6 05` | `f7 05 01` | Automatic power off |
+| `f6 06` | `f7 06 00 00 03 00 00 00` | unknown |
+| `f6 07` | `f7 07 00` | unknown |
+| `f6 09` | `f7 09 00` | unknown |
 | `fa 03` | `fb 03 01 00 01 00 01` | Speak-to-Chat config |
 | `fa 06` | `fb 06 00 00 f0 00 00 00` | " |
-| `a6 01` | `a7 01 01 00 01 00 01 00 01 00` | Volume |
-| `a6 20` | `a7 20 0f` | " |
+| `a6 01` | `a7 01 01 00 01 00 01 00 01 00` | Volume, some other sub-setting |
 | `80 01` | `81 01 02 00` | unknown |
 | `80 02` | `81 02 22 00` | unknown |
 

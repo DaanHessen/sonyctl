@@ -11,7 +11,7 @@ use crate::{
         EQ_BAND_OFFSET, MAX_AMBIENT_LEVEL,
     },
 };
-use crate::types::Toggle;
+use crate::types::{Toggle, Volume, MAX_VOLUME};
 
 /// Response opcodes each feature may answer with: the return, and the
 /// notification a set is acknowledged by. A reply whose first byte is not in
@@ -21,6 +21,7 @@ pub const NOISE_CONTROL_ACCEPTS: &[u8] = &[0x67, 0x69];
 pub const EQ_ACCEPTS: &[u8] = &[0x57, 0x59];
 pub const DSEE_ACCEPTS: &[u8] = &[0xe7, 0xe9];
 pub const VOICE_GUIDANCE_ACCEPTS: &[u8] = &[0x47, 0x49];
+pub const VOLUME_ACCEPTS: &[u8] = &[0xa7, 0xa9];
 
 /// The table almost every command rides.
 pub const DEFAULT_TABLE: DataType = DataType::DataMdr;
@@ -228,4 +229,31 @@ pub fn set_voice_guidance(enabled: bool) -> Vec<u8> {
         u8::from(!enabled),
         VOICE_GUIDANCE_SET_TAIL,
     ]
+}
+
+
+// --- volume ------------------------------------------------------------------
+
+const VOLUME_GET: u8 = 0xa6;
+const VOLUME_RET: u8 = 0xa7;
+const VOLUME_SET: u8 = 0xa8;
+const VOLUME_NTFY: u8 = 0xa9;
+const VOLUME_TYPE: u8 = 0x20;
+
+pub fn volume_request() -> Vec<u8> {
+    vec![VOLUME_GET, VOLUME_TYPE]
+}
+
+pub fn parse_volume(payload: &[u8]) -> Result<Volume, SonyError> {
+    if payload.len() < 3 || !matches!(payload[0], VOLUME_RET | VOLUME_NTFY) {
+        return Err(SonyError::InvalidFrame);
+    }
+    Ok(Volume { level: payload[2] })
+}
+
+pub fn set_volume(level: u8) -> Result<Vec<u8>, SonyError> {
+    if level > MAX_VOLUME {
+        return Err(SonyError::Unsupported("volume above 30"));
+    }
+    Ok(vec![VOLUME_SET, VOLUME_TYPE, level])
 }

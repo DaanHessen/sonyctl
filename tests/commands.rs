@@ -312,3 +312,41 @@ fn encodes_a_voice_guidance_change_inverted() {
     assert_eq!(sony_api::commands::set_voice_guidance(false), vec![0x48, 0x01, 0x01, 0x01]);
     assert_eq!(sony_api::commands::set_voice_guidance(true), vec![0x48, 0x01, 0x00, 0x01]);
 }
+
+// --- volume ------------------------------------------------------------------
+
+#[test]
+fn volume_request_matches_the_confirmed_opcode() {
+    assert_eq!(sony_api::commands::volume_request(), vec![0xa6, 0x20]);
+}
+
+#[test]
+fn parses_a_volume_reply() {
+    // Recorded: a7 20 0f
+    assert_eq!(sony_api::commands::parse_volume(&[0xa7, 0x20, 0x0f]).unwrap().level, 15);
+}
+
+#[test]
+fn parses_the_volume_set_notification() {
+    // Recorded: a8 20 0a is answered with a9 20 0a
+    assert_eq!(sony_api::commands::parse_volume(&[0xa9, 0x20, 0x0a]).unwrap().level, 10);
+}
+
+#[test]
+fn encodes_a_volume_change() {
+    assert_eq!(sony_api::commands::set_volume(10).unwrap(), vec![0xa8, 0x20, 0x0a]);
+    assert_eq!(sony_api::commands::set_volume(0).unwrap(), vec![0xa8, 0x20, 0x00]);
+    assert_eq!(sony_api::commands::set_volume(30).unwrap(), vec![0xa8, 0x20, 0x1e]);
+}
+
+#[test]
+fn rejects_a_volume_above_the_confirmed_maximum() {
+    // The headset clamps 0x20 and 0xff down to 0x1e; reject rather than lie
+    // to the caller about what was applied.
+    assert!(sony_api::commands::set_volume(31).is_err());
+}
+
+#[test]
+fn rejects_a_short_volume_reply() {
+    assert!(sony_api::commands::parse_volume(&[0xa7, 0x20]).is_err());
+}

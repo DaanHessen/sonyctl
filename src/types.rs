@@ -116,6 +116,15 @@ pub struct SessionInfo {
     pub channel: u8,
 }
 
+/// Playback volume as the headset reports it. Confirmed range on the
+/// WH-XB910N is 0 to 30; the device clamps anything higher down to 30.
+pub const MAX_VOLUME: u8 = 30;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Volume {
+    pub level: u8,
+}
+
 /// A plain on/off setting. Used by every boolean feature so they all present
 /// the same shape over HTTP and on the CLI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -139,4 +148,5 @@ pub struct DeviceStatus {
     pub dsee: Option<Toggle>,
     /// Spoken notifications and voice guidance.
     pub voice_guidance: Option<Toggle>,
+    pub volume: Option<Volume>,
 }
