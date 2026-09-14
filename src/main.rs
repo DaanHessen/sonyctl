@@ -74,6 +74,8 @@ enum Commands {
         #[command(subcommand)]
         action: ToggleCommand,
     },
+    /// Model code, serial and firmware versions as the headset reports them.
+    DeviceInfo,
     /// Playback volume, 0-30.
     Volume {
         #[command(subcommand)]
@@ -311,6 +313,9 @@ async fn main() -> Result<()> {
                 .await?,
             ),
         },
+        Commands::DeviceInfo => {
+            print(connected(&endpoint, Method::GET, "/api/device-info", None::<()>).await?)
+        }
         Commands::Volume { action } => match action {
             VolumeCommand::Get => {
                 print(connected(&endpoint, Method::GET, "/api/volume", None::<()>).await?)

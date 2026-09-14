@@ -12,7 +12,7 @@ use crate::{
     error::SonyError,
     types::{
         AncMode, Battery, DeviceStatus, EqBands, EqPreset, Equalizer, NoiseControl, SessionInfo,
-        Toggle, Volume,
+        DeviceInfo, Toggle, Volume,
     },
 };
 
@@ -244,6 +244,33 @@ impl SonyManager {
             Err(SonyError::Timeout(_)) => self.volume().await,
             Err(err) => Err(err),
         }
+    }
+
+    /// The headset's own identity: model code, serial and firmware versions.
+    pub async fn device_info(&self) -> Result<DeviceInfo, SonyError> {
+        let reply = self
+            .exchange_on(
+                commands::VOICE_GUIDANCE_TABLE,
+                commands::device_info_request(),
+                commands::DEVICE_INFO_ACCEPTS,
+            )
+            .await?;
+        let mut info = commands::parse_device_info(&reply)?;
+
+        // The marketing name comes from a separate command; a failure there
+        // should not lose the rest of the identity.
+        if let Ok(reply) = self
+            .exchange_on(
+                commands::VOICE_GUIDANCE_TABLE,
+                commands::model_name_request(),
+                commands::MODEL_NAME_ACCEPTS,
+            )
+            .await
+        {
+            info.model_name = commands::parse_model_name(&reply).ok();
+        }
+
+        Ok(info)
     }
 
     /// Everything the device reports, in one call. A feature the model does

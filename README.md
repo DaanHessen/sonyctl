@@ -108,6 +108,14 @@ matches no published reverse-engineering notes for the range.
 
 ### Installation
 
+On Arch, install from the AUR:
+
+```sh
+yay -S sonyctl
+```
+
+Or build it yourself:
+
 ```sh
 git clone https://github.com/DaanHessen/sonyctl.git
 cd sonyctl
@@ -160,6 +168,7 @@ The CLI opens a session by itself, so no connect step is needed.
 | `sonyctl ambient get\|set <0-20> [--focus-on-voice <bool>]` | Ambient level and voice focus |
 | `sonyctl eq get\|set <preset>` | `off`, `bright`, `excited`, `mellow`, `relaxed`, `vocal`, `treble`, `bass`, `speech`, `custom`, `user1`, `user2` |
 | `sonyctl eq bands --clear-bass <n> --bands <b1,...,b5>` | Custom bands, each between -10 and 10 |
+| `sonyctl device-info` | Model code, serial and firmware versions |
 | `sonyctl volume get\|set <0-30>` | Playback volume |
 | `sonyctl dsee get\|set <bool>` | DSEE Extreme upscaling |
 | `sonyctl voice-guidance get\|set <bool>` | Spoken notifications |
@@ -183,6 +192,7 @@ already holds, so switching to ambient and back does not quietly reset them.
 | GET, POST | `/api/noise-control` | `{"mode":"ambient","ambient_level":10,"focus_on_voice":false}` | Noise control |
 | GET, POST | `/api/eq` | `{"preset":"bass"}` | Equalizer |
 | POST | `/api/eq/bands` | `{"clear_bass":4,"bands":[2,0,-1,3,5]}` | Equalizer |
+| GET | `/api/device-info` | | Model, serial, firmware |
 | GET, POST | `/api/volume` | `{"level":15}` | Volume |
 | GET, POST | `/api/dsee` | `{"enabled":true}` | Toggle |
 | GET, POST | `/api/voice-guidance` | `{"enabled":true}` | Toggle |
@@ -256,6 +266,7 @@ systemctl --user stop sonyctl
 - [x] Noise control, ambient level, focus on voice
 - [x] Equalizer presets and custom bands
 - [x] Playback volume
+- [x] Device identity: model, serial, firmware versions
 - [x] DSEE Extreme
 - [x] Voice guidance on and off
 - [x] HTTP API, systemd unit, waybar module

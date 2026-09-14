@@ -216,6 +216,35 @@ level, the headset does clamp here: `0x20` and `0xff` both come back as `0x1e`.
 sonyctl rejects anything above 30 rather than report a level that was not
 applied.
 
+## Device identity
+
+Both commands ride the v2 table.
+
+| Direction | Payload |
+|---|---|
+| Model name get | `04 01` |
+| Model name return | `05 01 <len> <ascii>`, observed `WH-XB910N` |
+| Device info get | `4a 01` |
+| Device info return | see below |
+
+The device info reply is a run of length-prefixed ASCII strings:
+
+```
+4b 01 14 <model code> <serial> 14 14 <device id> <count> (<index> <version>)*
+```
+
+Observed: model code `HP002`, serial `0000000002172598`, device id
+`0E71BFFEED8CE99D`, and 15 firmware component versions from `VGIDLPB0601` to
+`VGIDLPB06F0`.
+
+## A warning about sweeping
+
+Do not sweep setter opcodes. Sony numbers each family `n` get, `n+1` return,
+`n+2` set, `n+3` notify, so a sweep that walks every opcode will write as well
+as read. Sending a bare `48 01` during one sweep silently disabled voice
+guidance, which only showed up on the next read. Sweep the get opcodes and
+leave the rest alone.
+
 ## Present but not writable on this model
 
 These answer a read but reject every write, so sonyctl exposes neither:

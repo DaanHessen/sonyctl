@@ -116,6 +116,20 @@ pub struct SessionInfo {
     pub channel: u8,
 }
 
+/// Identity the headset reports about itself, distinct from the Bluetooth
+/// name, which the user can change.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeviceInfo {
+    /// Sony's internal model code, for example `HP002`.
+    pub model_code: String,
+    pub serial: String,
+    pub device_id: String,
+    /// Firmware component versions, in the order the headset lists them.
+    pub firmware: Vec<String>,
+    /// Marketing model name, for example `WH-XB910N`. Read separately.
+    pub model_name: Option<String>,
+}
+
 /// Playback volume as the headset reports it. Confirmed range on the
 /// WH-XB910N is 0 to 30; the device clamps anything higher down to 30.
 pub const MAX_VOLUME: u8 = 30;

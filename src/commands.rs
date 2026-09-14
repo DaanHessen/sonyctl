@@ -11,7 +11,7 @@ use crate::{
         EQ_BAND_OFFSET, MAX_AMBIENT_LEVEL,
     },
 };
-use crate::types::{Toggle, Volume, MAX_VOLUME};
+use crate::types::{DeviceInfo, Toggle, Volume, MAX_VOLUME};
 
 /// Response opcodes each feature may answer with: the return, and the
 /// notification a set is acknowledged by. A reply whose first byte is not in
@@ -22,6 +22,8 @@ pub const EQ_ACCEPTS: &[u8] = &[0x57, 0x59];
 pub const DSEE_ACCEPTS: &[u8] = &[0xe7, 0xe9];
 pub const VOICE_GUIDANCE_ACCEPTS: &[u8] = &[0x47, 0x49];
 pub const VOLUME_ACCEPTS: &[u8] = &[0xa7, 0xa9];
+pub const MODEL_NAME_ACCEPTS: &[u8] = &[0x05];
+pub const DEVICE_INFO_ACCEPTS: &[u8] = &[0x4b];
 
 /// The table almost every command rides.
 pub const DEFAULT_TABLE: DataType = DataType::DataMdr;
@@ -256,4 +258,75 @@ pub fn set_volume(level: u8) -> Result<Vec<u8>, SonyError> {
         return Err(SonyError::Unsupported("volume above 30"));
     }
     Ok(vec![VOLUME_SET, VOLUME_TYPE, level])
+}
+
+
+// --- device info -------------------------------------------------------------
+//
+// Both of these ride the v2 table, like voice guidance.
+
+const MODEL_NAME_GET: u8 = 0x04;
+const MODEL_NAME_RET: u8 = 0x05;
+const DEVICE_INFO_GET: u8 = 0x4a;
+const DEVICE_INFO_RET: u8 = 0x4b;
+const DEVICE_INFO_TYPE: u8 = 0x01;
+
+pub fn model_name_request() -> Vec<u8> {
+    vec![MODEL_NAME_GET, DEVICE_INFO_TYPE]
+}
+
+pub fn device_info_request() -> Vec<u8> {
+    vec![DEVICE_INFO_GET, DEVICE_INFO_TYPE]
+}
+
+/// Read one length-prefixed ASCII string, returning it and the next offset.
+fn take_string(payload: &[u8], at: usize) -> Result<(String, usize), SonyError> {
+    let len = *payload.get(at).ok_or(SonyError::InvalidFrame)? as usize;
+    let start = at + 1;
+    let bytes = payload
+        .get(start..start + len)
+        .ok_or(SonyError::InvalidFrame)?;
+    let text = String::from_utf8(bytes.to_vec()).map_err(|_| SonyError::InvalidFrame)?;
+    Ok((text, start + len))
+}
+
+pub fn parse_model_name(payload: &[u8]) -> Result<String, SonyError> {
+    if payload.len() < 3 || payload[0] != MODEL_NAME_RET {
+        return Err(SonyError::InvalidFrame);
+    }
+    Ok(take_string(payload, 2)?.0)
+}
+
+/// Layout, confirmed byte by byte on the WH-XB910N:
+///
+/// `4b 01 14 <model> <serial> 14 14 <device id> <count> (<index> <version>)*`
+///
+/// where each bracketed field is one length-prefixed ASCII string.
+pub fn parse_device_info(payload: &[u8]) -> Result<DeviceInfo, SonyError> {
+    if payload.len() < 4 || payload[0] != DEVICE_INFO_RET {
+        return Err(SonyError::InvalidFrame);
+    }
+
+    let (model_code, at) = take_string(payload, 3)?;
+    let (serial, at) = take_string(payload, at)?;
+    // Two fixed bytes sit between the serial and the device id.
+    let (device_id, at) = take_string(payload, at + 2)?;
+
+    let count = *payload.get(at).ok_or(SonyError::InvalidFrame)? as usize;
+    let mut firmware = Vec::with_capacity(count);
+    let mut at = at + 1;
+    for _ in 0..count {
+        // Each entry is a one-byte component index followed by the version.
+        let (version, next) = take_string(payload, at + 1)?;
+        firmware.push(version);
+        at = next;
+    }
+
+    Ok(DeviceInfo {
+        model_code,
+        serial,
+        device_id,
+        firmware,
+        model_name: None,
+    })
 }

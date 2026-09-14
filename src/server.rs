@@ -80,6 +80,7 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/dsee", get(get_dsee).post(set_dsee))
         .route("/api/voice-guidance", get(get_voice).post(set_voice))
         .route("/api/volume", get(get_volume).post(set_volume))
+        .route("/api/device-info", get(device_info))
         .route("/api/detect", get(detect))
         // Explicit method routers above already cover these paths; the two
         // below keep the DELETE and POST helpers referenced.
@@ -203,4 +204,8 @@ async fn set_volume(
     Json(body): Json<VolumeRequest>,
 ) -> Result<Response, SonyError> {
     Ok(Json(state.manager.set_volume(body.level).await?).into_response())
+}
+
+async fn device_info(State(state): State<ApiState>) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.device_info().await?).into_response())
 }

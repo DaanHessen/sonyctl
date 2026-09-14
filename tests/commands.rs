@@ -350,3 +350,61 @@ fn rejects_a_volume_above_the_confirmed_maximum() {
 fn rejects_a_short_volume_reply() {
     assert!(sony_api::commands::parse_volume(&[0xa7, 0x20]).is_err());
 }
+
+// --- device info -------------------------------------------------------------
+
+#[test]
+fn device_info_requests_match_the_confirmed_opcodes() {
+    assert_eq!(sony_api::commands::model_name_request(), vec![0x04, 0x01]);
+    assert_eq!(sony_api::commands::device_info_request(), vec![0x4a, 0x01]);
+}
+
+#[test]
+fn parses_the_model_name() {
+    // Recorded: 05 01 09 "WH-XB910N"
+    let mut payload = vec![0x05, 0x01, 0x09];
+    payload.extend_from_slice(b"WH-XB910N");
+    assert_eq!(
+        sony_api::commands::parse_model_name(&payload).unwrap(),
+        "WH-XB910N"
+    );
+}
+
+#[test]
+fn rejects_a_truncated_model_name() {
+    // Length byte claims 9 but only 3 bytes follow.
+    let payload = vec![0x05, 0x01, 0x09, b'W', b'H', b'-'];
+    assert!(sony_api::commands::parse_model_name(&payload).is_err());
+}
+
+#[test]
+fn parses_device_info() {
+    // Recorded from the WH-XB910N, truncated to two firmware entries.
+    let mut payload = vec![0x4b, 0x01, 0x14, 0x05];
+    payload.extend_from_slice(b"HP002");
+    payload.push(0x10);
+    payload.extend_from_slice(b"0000000002172598");
+    payload.extend_from_slice(&[0x14, 0x14, 0x10]);
+    payload.extend_from_slice(b"0E71BFFEED8CE99D");
+    payload.push(0x02); // two entries
+    payload.extend_from_slice(&[0x01, 0x0b]);
+    payload.extend_from_slice(b"VGIDLPB0601");
+    payload.extend_from_slice(&[0x02, 0x0b]);
+    payload.extend_from_slice(b"VGIDLPB0602");
+
+    let info = sony_api::commands::parse_device_info(&payload).unwrap();
+    assert_eq!(info.model_code, "HP002");
+    assert_eq!(info.serial, "0000000002172598");
+    assert_eq!(info.device_id, "0E71BFFEED8CE99D");
+    assert_eq!(info.firmware, vec!["VGIDLPB0601", "VGIDLPB0602"]);
+}
+
+#[test]
+fn rejects_device_info_with_the_wrong_opcode() {
+    assert!(sony_api::commands::parse_device_info(&[0x47, 0x01, 0x14, 0x00]).is_err());
+}
+
+#[test]
+fn rejects_truncated_device_info() {
+    assert!(sony_api::commands::parse_device_info(&[0x4b, 0x01, 0x14, 0x05, b'H']).is_err());
+}
