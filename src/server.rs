@@ -54,6 +54,11 @@ pub struct NoiseControlRequest {
 }
 
 #[derive(Deserialize)]
+pub struct ToggleRequest {
+    pub enabled: bool,
+}
+
+#[derive(Deserialize)]
 pub struct EqPresetRequest {
     pub preset: EqPreset,
 }
@@ -67,6 +72,8 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/noise-control", get(get_noise).post(set_noise))
         .route("/api/eq", get(get_eq).post(set_eq))
         .route("/api/eq/bands", post(set_eq_bands))
+        .route("/api/dsee", get(get_dsee).post(set_dsee))
+        .route("/api/voice-guidance", get(get_voice).post(set_voice))
         .route("/api/detect", get(detect))
         // Explicit method routers above already cover these paths; the two
         // below keep the DELETE and POST helpers referenced.
@@ -157,4 +164,26 @@ async fn set_eq_bands(
     Json(bands): Json<EqBands>,
 ) -> Result<Response, SonyError> {
     Ok(Json(state.manager.set_eq_bands(bands).await?).into_response())
+}
+
+async fn get_dsee(State(state): State<ApiState>) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.dsee().await?).into_response())
+}
+
+async fn set_dsee(
+    State(state): State<ApiState>,
+    Json(body): Json<ToggleRequest>,
+) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.set_dsee(body.enabled).await?).into_response())
+}
+
+async fn get_voice(State(state): State<ApiState>) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.voice_guidance().await?).into_response())
+}
+
+async fn set_voice(
+    State(state): State<ApiState>,
+    Json(body): Json<ToggleRequest>,
+) -> Result<Response, SonyError> {
+    Ok(Json(state.manager.set_voice_guidance(body.enabled).await?).into_response())
 }

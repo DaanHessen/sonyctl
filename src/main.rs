@@ -1,7 +1,7 @@
-use std::{net::SocketAddr, time::Duration};
+use std::{io, net::SocketAddr, time::Duration};
 
 use anyhow::{anyhow, Result};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use reqwest::{Client, Method};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -64,6 +64,16 @@ enum Commands {
         #[command(subcommand)]
         action: AmbientCommand,
     },
+    /// DSEE Extreme upscaling.
+    Dsee {
+        #[command(subcommand)]
+        action: ToggleCommand,
+    },
+    /// Spoken notifications and voice guidance.
+    VoiceGuidance {
+        #[command(subcommand)]
+        action: ToggleCommand,
+    },
     /// Equalizer.
     Eq {
         #[command(subcommand)]
@@ -81,6 +91,11 @@ enum Commands {
         /// Frame data type byte: 0c for the v1 command table, 0e for v2.
         #[arg(long, default_value = "0c")]
         data_type: String,
+    },
+    /// Print a shell completion script.
+    Completions {
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
     },
     /// Print every frame the headset pushes. Development tool.
     Listen {
@@ -114,6 +129,19 @@ enum AmbientCommand {
 }
 
 #[derive(Subcommand)]
+enum ToggleCommand {
+    Get,
+    Set {
+        #[arg(
+            value_parser = clap::builder::BoolishValueParser::new(),
+            value_name = "true|false",
+            action = clap::ArgAction::Set
+        )]
+        enabled: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum EqCommand {
     Get,
     Set {
@@ -142,6 +170,11 @@ async fn main() -> Result<()> {
     let endpoint = cli.endpoint.clone();
 
     match cli.command {
+        Commands::Completions { shell } => {
+            let mut command = Cli::command();
+            let name = command.get_name().to_string();
+            clap_complete::generate(shell, &mut command, name, &mut io::stdout());
+        }
         Commands::Server { addr } => {
             let addr: SocketAddr = addr.parse()?;
             let state = ApiState {
@@ -239,6 +272,34 @@ async fn main() -> Result<()> {
                 .await?,
             ),
         },
+        Commands::Dsee { action } => match action {
+            ToggleCommand::Get => {
+                print(connected(&endpoint, Method::GET, "/api/dsee", None::<()>).await?)
+            }
+            ToggleCommand::Set { enabled } => print(
+                connected(
+                    &endpoint,
+                    Method::POST,
+                    "/api/dsee",
+                    Some(json!({ "enabled": enabled })),
+                )
+                .await?,
+            ),
+        },
+        Commands::VoiceGuidance { action } => match action {
+            ToggleCommand::Get => print(
+                connected(&endpoint, Method::GET, "/api/voice-guidance", None::<()>).await?,
+            ),
+            ToggleCommand::Set { enabled } => print(
+                connected(
+                    &endpoint,
+                    Method::POST,
+                    "/api/voice-guidance",
+                    Some(json!({ "enabled": enabled })),
+                )
+                .await?,
+            ),
+        },
         Commands::Eq { action } => match action {
             EqCommand::Get => print(connected(&endpoint, Method::GET, "/api/eq", None::<()>).await?),
             EqCommand::Set { preset } => print(
@@ -290,8 +351,11 @@ async fn api<B: Serialize>(
 
     let response = request.send().await.map_err(|err| {
         anyhow!(
-            "could not reach the sonyctl server at {} ({}). Start it with \
-             `systemctl --user start sonyctl` or `sonyctl server`.",
+            "could not reach the sonyctl server at {}: {}\n\n\
+             Start it with `systemctl --user start sonyctl`, or run \
+             `sonyctl server` in another terminal.\n\
+             If you were just running `sonyctl probe` or `sonyctl listen`, the \
+             daemon was stopped to free the headset's single RFCOMM link.",
             endpoint,
             err
         )

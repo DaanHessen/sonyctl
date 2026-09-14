@@ -12,6 +12,20 @@ use crate::{
     error::SonyError,
 };
 
+/// There is only one RFCOMM link to the headset. If the daemon holds it, the
+/// kernel refuses a second connect with EBUSY, which on its own reads as a
+/// hardware fault rather than "something else is using it".
+fn busy_hint(err: SonyError) -> SonyError {
+    if err.to_string().contains("resource busy") {
+        return SonyError::Detection(
+            "the headset's RFCOMM link is already in use - the sonyctl daemon is \
+             probably holding it. Stop it first: systemctl --user stop sonyctl"
+                .to_string(),
+        );
+    }
+    err
+}
+
 pub fn format_hex(bytes: &[u8]) -> String {
     bytes
         .iter()
@@ -42,7 +56,7 @@ async fn open(
         .address
         .parse()
         .map_err(|_| SonyError::Detection(format!("bad address {}", device.address)))?;
-    let conn = SonyConnection::open(parsed, channel).await?;
+    let conn = SonyConnection::open(parsed, channel).await.map_err(busy_hint)?;
     // The RFCOMM socket reports connected slightly before it can carry data;
     // writing immediately yields ENOTCONN. Let it settle.
     tokio::time::sleep(Duration::from_millis(400)).await;

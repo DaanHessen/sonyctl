@@ -116,10 +116,27 @@ pub struct SessionInfo {
     pub channel: u8,
 }
 
+/// A plain on/off setting. Used by every boolean feature so they all present
+/// the same shape over HTTP and on the CLI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Toggle {
+    pub enabled: bool,
+}
+
+impl Toggle {
+    pub fn new(enabled: bool) -> Toggle {
+        Toggle { enabled }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceStatus {
     pub session: SessionInfo,
     pub battery: Option<Battery>,
     pub noise_control: Option<NoiseControl>,
     pub equalizer: Option<Equalizer>,
+    /// DSEE Extreme / audio upsampling.
+    pub dsee: Option<Toggle>,
+    /// Spoken notifications and voice guidance.
+    pub voice_guidance: Option<Toggle>,
 }

@@ -146,6 +146,88 @@ Preset IDs, from the `50 00` reply:
 | `0xa1` | User 1 |
 | `0xa2` | User 2 |
 
+## DSEE Extreme (audio upsampling)
+
+| Direction | Payload |
+|---|---|
+| Get | `e6 00` |
+| Return | `e7 00 <0\|1>` |
+| Set | `e8 00 <0\|1>` |
+| Notify | `e9 00 <0\|1>` |
+
+Confirmed by toggling and reading back. `e6 01` also answers (`e7 01 01`) and
+is not decoded.
+
+## Voice guidance
+
+The only command found so far that rides the **v2 table** (`dataType` `0x0e`).
+Sending it on the v1 table returns nothing, which is why an earlier v1-only
+sweep missed it.
+
+| Direction | Payload |
+|---|---|
+| Get | `46 01` |
+| Return | `47 01 <value> 01` |
+| Set | `48 01 <value> 01` |
+| Notify | `49 01 <value>` |
+
+**The value is inverted**: `0x00` means enabled, `0x01` means disabled.
+Confirmed by disabling, reading back, and re-enabling.
+
+Note that enabling this does **not** make the headset announce noise-control
+changes made over the protocol. See "Voice prompts" below.
+
+## Voice prompts on mode change
+
+The headset speaks the mode aloud when its own NC/AMBIENT button is pressed,
+but not when the mode is set over the protocol. Ruled out so far:
+
+- The fixed byte `p0` is not an "announce" flag. Gadgetbridge hardcodes it to
+  `0x01` exactly as we do; it distinguishes a committed value from a slider
+  drag in progress.
+- Voice guidance is enabled on the device (verified by reading `46 01`).
+- The inquired type is not the cause. The reference implementation uses `0x17`
+  for wind-noise-capable models and `0x15` otherwise; this device answers only
+  on `0x15` and `0x16`, and both are silent on set.
+
+No open-source implementation exposes a "speak now" trigger. The working
+theory is that the announcement is a button-press behaviour rather than a
+protocol-visible one, but this is **not confirmed**.
+
+## Response correlation
+
+The headset emits notifications unprompted, so the next frame after a request
+is not necessarily its answer. Every exchange must match the reply's first
+byte against the opcodes that command can answer with, and skip anything else.
+Ignoring this produces sporadic decode failures that do not reproduce under
+the raw probe.
+
+## Answers but undecoded
+
+These respond with plausible payloads but their fields have not been
+confirmed, so nothing in sonyctl reads or writes them:
+
+| Request | Reply | Likely feature (per Gadgetbridge naming, unverified) |
+|---|---|---|
+| `f6 03` | `f7 03 02 ff ff` | Automatic power off / button mode |
+| `f6 04` | `f7 04 30` | " |
+| `f6 05` | `f7 05 01` | " |
+| `f6 06` | `f7 06 00 00 03 00 00 00` | " |
+| `f6 07` | `f7 07 00` | " |
+| `f6 09` | `f7 09 00` | " |
+| `fa 03` | `fb 03 01 00 01 00 01` | Speak-to-Chat config |
+| `fa 06` | `fb 06 00 00 f0 00 00 00` | " |
+| `a6 01` | `a7 01 01 00 01 00 01 00 01 00` | Volume |
+| `a6 20` | `a7 20 0f` | " |
+| `80 01` | `81 01 02 00` | unknown |
+| `80 02` | `81 02 22 00` | unknown |
+
+Opcode reference from Gadgetbridge's `PayloadTypeV1`: sound position `0x46`,
+equalizer `0x56`, ambient sound control `0x66`, volume `0xa6`, NC optimizer
+`0x86`, touch sensor `0xd6`, audio upsampling `0xe6`, automatic power off
+`0xf6`, Speak-to-Chat `0xfa`, all on the v1 table; voice notifications `0x46`
+on the v2 table. Touch sensor (`0xd6`) does not answer on this model.
+
 ## Unconfirmed
 
 These answered a probe but their payloads have not been decoded, and nothing

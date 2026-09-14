@@ -242,3 +242,73 @@ fn parses_the_notification_a_set_replies_with() {
     assert_eq!(eq.preset, EqPreset::Bass);
     assert_eq!(eq.bands.clear_bass, 7);
 }
+
+// --- DSEE (audio upsampling) -------------------------------------------------
+
+#[test]
+fn dsee_request_matches_the_confirmed_opcode() {
+    assert_eq!(sony_api::commands::dsee_request(), vec![0xe6, 0x00]);
+}
+
+#[test]
+fn parses_dsee_off_and_on() {
+    // Recorded: e7 00 00 when off, e7 00 01 when on.
+    assert!(!sony_api::commands::parse_dsee(&[0xe7, 0x00, 0x00]).unwrap().enabled);
+    assert!(sony_api::commands::parse_dsee(&[0xe7, 0x00, 0x01]).unwrap().enabled);
+}
+
+#[test]
+fn parses_the_dsee_set_notification() {
+    // Recorded: e8 00 01 is answered with e9 00 01.
+    assert!(sony_api::commands::parse_dsee(&[0xe9, 0x00, 0x01]).unwrap().enabled);
+}
+
+#[test]
+fn encodes_a_dsee_change() {
+    // Recorded: e8 00 01 turns it on, e8 00 00 turns it off.
+    assert_eq!(sony_api::commands::set_dsee(true), vec![0xe8, 0x00, 0x01]);
+    assert_eq!(sony_api::commands::set_dsee(false), vec![0xe8, 0x00, 0x00]);
+}
+
+#[test]
+fn rejects_a_short_dsee_reply() {
+    assert!(sony_api::commands::parse_dsee(&[0xe7, 0x00]).is_err());
+}
+
+// --- voice guidance ----------------------------------------------------------
+
+#[test]
+fn voice_guidance_request_matches_the_confirmed_opcode() {
+    assert_eq!(sony_api::commands::voice_guidance_request(), vec![0x46, 0x01]);
+}
+
+#[test]
+fn voice_guidance_rides_the_v2_command_table() {
+    // Unlike every other command here, this one is only answered on the
+    // DataMdrNo2 table. Sending it on DataMdr returns nothing at all.
+    assert_eq!(
+        sony_api::commands::VOICE_GUIDANCE_TABLE,
+        sony_api::DataType::DataMdrNo2
+    );
+}
+
+#[test]
+fn parses_voice_guidance_with_its_inverted_wire_value() {
+    // Recorded: 47 01 00 01 while ENABLED, 47 01 01 01 while disabled.
+    assert!(sony_api::commands::parse_voice_guidance(&[0x47, 0x01, 0x00, 0x01]).unwrap().enabled);
+    assert!(!sony_api::commands::parse_voice_guidance(&[0x47, 0x01, 0x01, 0x01]).unwrap().enabled);
+}
+
+#[test]
+fn parses_the_shorter_voice_guidance_notification() {
+    // A set is answered with 49 01 <value> - one byte shorter than the return.
+    assert!(sony_api::commands::parse_voice_guidance(&[0x49, 0x01, 0x00]).unwrap().enabled);
+    assert!(!sony_api::commands::parse_voice_guidance(&[0x49, 0x01, 0x01]).unwrap().enabled);
+}
+
+#[test]
+fn encodes_a_voice_guidance_change_inverted() {
+    // Recorded: 48 01 01 01 disables, 48 01 00 01 enables.
+    assert_eq!(sony_api::commands::set_voice_guidance(false), vec![0x48, 0x01, 0x01, 0x01]);
+    assert_eq!(sony_api::commands::set_voice_guidance(true), vec![0x48, 0x01, 0x00, 0x01]);
+}

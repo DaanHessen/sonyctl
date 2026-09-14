@@ -12,6 +12,7 @@ use crate::{
     error::SonyError,
     types::{
         AncMode, Battery, DeviceStatus, EqBands, EqPreset, Equalizer, NoiseControl, SessionInfo,
+        Toggle,
     },
 };
 
@@ -86,28 +87,57 @@ impl SonyManager {
     }
 
     /// Run one request/response exchange, dropping the session if the link died.
-    async fn exchange(&self, payload: Vec<u8>) -> Result<Vec<u8>, SonyError> {
+    ///
+    /// `table` selects the frame data type. Most commands ride the default
+    /// table; voice guidance is only answered on the second one.
+    async fn exchange_on(
+        &self,
+        table: crate::protocol::DataType,
+        payload: Vec<u8>,
+        accepts: &[u8],
+    ) -> Result<Vec<u8>, SonyError> {
         let mut guard = self.session.lock().await;
         let session = guard.as_mut().ok_or(SonyError::NoSession)?;
 
-        match session.connection.request(payload).await {
-            Ok(frame) => Ok(frame.payload),
-            Err(err) => {
-                if session.connection.broken_flag().load(Ordering::SeqCst) {
-                    *guard = None;
+        session.connection.set_data_type(table);
+
+        let result = async {
+            session.connection.send(payload).await?;
+            // The headset pushes notifications of its own accord, so the next
+            // frame is not necessarily the answer to this request. Keep reading
+            // until one carries an opcode this command actually expects.
+            loop {
+                let frame = session.connection.recv().await?;
+                match frame.payload.first() {
+                    Some(opcode) if accepts.contains(opcode) => return Ok(frame.payload),
+                    Some(opcode) => tracing::debug!(
+                        "ignoring unrelated frame with opcode {:#04x}",
+                        opcode
+                    ),
+                    None => tracing::debug!("ignoring empty frame"),
                 }
-                Err(err)
             }
         }
+        .await;
+
+        if result.is_err() && session.connection.broken_flag().load(Ordering::SeqCst) {
+            *guard = None;
+        }
+        result
+    }
+
+    async fn exchange(&self, payload: Vec<u8>, accepts: &[u8]) -> Result<Vec<u8>, SonyError> {
+        self.exchange_on(commands::DEFAULT_TABLE, payload, accepts)
+            .await
     }
 
     pub async fn battery(&self) -> Result<Battery, SonyError> {
-        let reply = self.exchange(commands::battery_request()).await?;
+        let reply = self.exchange(commands::battery_request(), commands::BATTERY_ACCEPTS).await?;
         commands::parse_battery(&reply)
     }
 
     pub async fn noise_control(&self) -> Result<NoiseControl, SonyError> {
-        let reply = self.exchange(commands::noise_control_request()).await?;
+        let reply = self.exchange(commands::noise_control_request(), commands::NOISE_CONTROL_ACCEPTS).await?;
         commands::parse_noise_control(&reply)
     }
 
@@ -116,7 +146,7 @@ impl SonyManager {
         control: NoiseControl,
     ) -> Result<NoiseControl, SonyError> {
         let payload = commands::set_noise_control(control)?;
-        match self.exchange(payload).await {
+        match self.exchange(payload, commands::NOISE_CONTROL_ACCEPTS).await {
             Ok(reply) => commands::parse_noise_control(&reply),
             // Writing values the headset already holds produces no
             // notification, so silence means "applied", not "failed".
@@ -133,12 +163,12 @@ impl SonyManager {
     }
 
     pub async fn equalizer(&self) -> Result<Equalizer, SonyError> {
-        let reply = self.exchange(commands::eq_request()).await?;
+        let reply = self.exchange(commands::eq_request(), commands::EQ_ACCEPTS).await?;
         commands::parse_eq(&reply)
     }
 
     pub async fn set_eq_preset(&self, preset: EqPreset) -> Result<Equalizer, SonyError> {
-        match self.exchange(commands::set_eq_preset(preset)).await {
+        match self.exchange(commands::set_eq_preset(preset), commands::EQ_ACCEPTS).await {
             Ok(reply) => commands::parse_eq(&reply),
             Err(SonyError::Timeout(_)) => self.equalizer().await,
             Err(err) => Err(err),
@@ -154,9 +184,48 @@ impl SonyManager {
         } else {
             EqPreset::User1
         };
-        match self.exchange(commands::set_eq_bands(preset, bands)?).await {
+        match self.exchange(commands::set_eq_bands(preset, bands)?, commands::EQ_ACCEPTS).await {
             Ok(reply) => commands::parse_eq(&reply),
             Err(SonyError::Timeout(_)) => self.equalizer().await,
+            Err(err) => Err(err),
+        }
+    }
+
+    pub async fn dsee(&self) -> Result<Toggle, SonyError> {
+        let reply = self.exchange(commands::dsee_request(), commands::DSEE_ACCEPTS).await?;
+        commands::parse_dsee(&reply)
+    }
+
+    pub async fn set_dsee(&self, enabled: bool) -> Result<Toggle, SonyError> {
+        match self.exchange(commands::set_dsee(enabled), commands::DSEE_ACCEPTS).await {
+            Ok(reply) => commands::parse_dsee(&reply),
+            Err(SonyError::Timeout(_)) => self.dsee().await,
+            Err(err) => Err(err),
+        }
+    }
+
+    pub async fn voice_guidance(&self) -> Result<Toggle, SonyError> {
+        let reply = self
+            .exchange_on(
+                commands::VOICE_GUIDANCE_TABLE,
+                commands::voice_guidance_request(),
+                commands::VOICE_GUIDANCE_ACCEPTS,
+            )
+            .await?;
+        commands::parse_voice_guidance(&reply)
+    }
+
+    pub async fn set_voice_guidance(&self, enabled: bool) -> Result<Toggle, SonyError> {
+        match self
+            .exchange_on(
+                commands::VOICE_GUIDANCE_TABLE,
+                commands::set_voice_guidance(enabled),
+                commands::VOICE_GUIDANCE_ACCEPTS,
+            )
+            .await
+        {
+            Ok(reply) => commands::parse_voice_guidance(&reply),
+            Err(SonyError::Timeout(_)) => self.voice_guidance().await,
             Err(err) => Err(err),
         }
     }
@@ -170,6 +239,8 @@ impl SonyManager {
             battery: optional(self.battery().await)?,
             noise_control: optional(self.noise_control().await)?,
             equalizer: optional(self.equalizer().await)?,
+            dsee: optional(self.dsee().await)?,
+            voice_guidance: optional(self.voice_guidance().await)?,
         })
     }
 }

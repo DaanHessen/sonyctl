@@ -5,11 +5,27 @@
 
 use crate::{
     error::SonyError,
+    protocol::DataType,
     types::{
         AncMode, Battery, EqBands, EqPreset, Equalizer, NoiseControl, EQ_BAND_MAX, EQ_BAND_MIN,
         EQ_BAND_OFFSET, MAX_AMBIENT_LEVEL,
     },
 };
+use crate::types::Toggle;
+
+/// Response opcodes each feature may answer with: the return, and the
+/// notification a set is acknowledged by. A reply whose first byte is not in
+/// this list belongs to some other exchange and must not be parsed as ours.
+pub const BATTERY_ACCEPTS: &[u8] = &[0x23, 0x24];
+pub const NOISE_CONTROL_ACCEPTS: &[u8] = &[0x67, 0x69];
+pub const EQ_ACCEPTS: &[u8] = &[0x57, 0x59];
+pub const DSEE_ACCEPTS: &[u8] = &[0xe7, 0xe9];
+pub const VOICE_GUIDANCE_ACCEPTS: &[u8] = &[0x47, 0x49];
+
+/// The table almost every command rides.
+pub const DEFAULT_TABLE: DataType = DataType::DataMdr;
+/// Voice guidance is only answered on the second table.
+pub const VOICE_GUIDANCE_TABLE: DataType = DataType::DataMdrNo2;
 
 // Battery
 const BATTERY_GET: u8 = 0x22;
@@ -157,4 +173,59 @@ pub fn set_eq_bands(preset: EqPreset, bands: EqBands) -> Result<Vec<u8>, SonyErr
     let mut payload = vec![EQ_SET, EQ_TYPE, preset.to_byte(), EQ_BAND_COUNT];
     payload.extend(values);
     Ok(payload)
+}
+
+
+// --- DSEE / audio upsampling -------------------------------------------------
+
+const DSEE_GET: u8 = 0xe6;
+const DSEE_RET: u8 = 0xe7;
+const DSEE_SET: u8 = 0xe8;
+const DSEE_NTFY: u8 = 0xe9;
+const DSEE_TYPE: u8 = 0x00;
+
+pub fn dsee_request() -> Vec<u8> {
+    vec![DSEE_GET, DSEE_TYPE]
+}
+
+pub fn parse_dsee(payload: &[u8]) -> Result<Toggle, SonyError> {
+    if payload.len() < 3 || !matches!(payload[0], DSEE_RET | DSEE_NTFY) {
+        return Err(SonyError::InvalidFrame);
+    }
+    Ok(Toggle::new(payload[2] != 0))
+}
+
+pub fn set_dsee(enabled: bool) -> Vec<u8> {
+    vec![DSEE_SET, DSEE_TYPE, u8::from(enabled)]
+}
+
+// --- voice guidance ----------------------------------------------------------
+
+const VOICE_GUIDANCE_GET: u8 = 0x46;
+const VOICE_GUIDANCE_RET: u8 = 0x47;
+const VOICE_GUIDANCE_SET: u8 = 0x48;
+const VOICE_GUIDANCE_NTFY: u8 = 0x49;
+const VOICE_GUIDANCE_TYPE: u8 = 0x01;
+/// Trailing byte the headset expects on a set. Constant in every capture.
+const VOICE_GUIDANCE_SET_TAIL: u8 = 0x01;
+
+pub fn voice_guidance_request() -> Vec<u8> {
+    vec![VOICE_GUIDANCE_GET, VOICE_GUIDANCE_TYPE]
+}
+
+/// The wire value is inverted: `0x00` means enabled.
+pub fn parse_voice_guidance(payload: &[u8]) -> Result<Toggle, SonyError> {
+    if payload.len() < 3 || !matches!(payload[0], VOICE_GUIDANCE_RET | VOICE_GUIDANCE_NTFY) {
+        return Err(SonyError::InvalidFrame);
+    }
+    Ok(Toggle::new(payload[2] == 0))
+}
+
+pub fn set_voice_guidance(enabled: bool) -> Vec<u8> {
+    vec![
+        VOICE_GUIDANCE_SET,
+        VOICE_GUIDANCE_TYPE,
+        u8::from(!enabled),
+        VOICE_GUIDANCE_SET_TAIL,
+    ]
 }
