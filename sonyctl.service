@@ -1,0 +1,26 @@
+[Unit]
+Description=Sony Headphones API Server
+Documentation=https://github.com/DaanHessen/sonyctl
+After=bluetooth.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sonyctl server --addr 127.0.0.1:8788
+Restart=on-failure
+RestartSec=5s
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bluetooth
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sonyctl
+
+[Install]
+WantedBy=default.target
