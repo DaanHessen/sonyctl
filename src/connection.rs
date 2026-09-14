@@ -151,10 +151,10 @@ impl SonyConnection<bluer::rfcomm::Stream> {
         let stream = bluer::rfcomm::Stream::connect(socket_addr)
             .await
             .map_err(|err| {
-                SonyError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("RFCOMM connect failed: {}", err),
-                ))
+                SonyError::Io(std::io::Error::other(format!(
+                    "RFCOMM connect failed: {}",
+                    err
+                )))
             })?;
         Ok(Self::new(stream))
     }

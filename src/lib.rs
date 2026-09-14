@@ -15,5 +15,6 @@ pub use protocol::{decode_frame, DataType, Frame};
 pub use server::{serve as serve_http, ApiState};
 pub use service::SonyManager;
 pub use types::{
-    AncMode, Battery, DeviceStatus, EqBands, EqPreset, Equalizer, NoiseControl, SessionInfo, Toggle, Volume,
+    AncMode, Battery, DeviceStatus, EqBands, EqPreset, Equalizer, NoiseControl, SessionInfo,
+    Toggle, Volume,
 };

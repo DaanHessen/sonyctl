@@ -4,7 +4,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 use serde::Deserialize;
@@ -82,9 +82,6 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/volume", get(get_volume).post(set_volume))
         .route("/api/device-info", get(device_info))
         .route("/api/detect", get(detect))
-        // Explicit method routers above already cover these paths; the two
-        // below keep the DELETE and POST helpers referenced.
-        .route("/api/session/disconnect", delete(drop_session))
         .with_state(state)
 }
 

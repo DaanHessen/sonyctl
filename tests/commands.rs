@@ -84,7 +84,10 @@ fn encodes_noise_control_off() {
         focus_on_voice: false,
     })
     .unwrap();
-    assert_eq!(encoded, vec![0x68, 0x16, 0x01, 0x00, 0x00, 0x02, 0x00, 0x14]);
+    assert_eq!(
+        encoded,
+        vec![0x68, 0x16, 0x01, 0x00, 0x00, 0x02, 0x00, 0x14]
+    );
 }
 
 #[test]
@@ -95,7 +98,10 @@ fn encodes_noise_cancelling() {
         focus_on_voice: false,
     })
     .unwrap();
-    assert_eq!(encoded, vec![0x68, 0x16, 0x01, 0x01, 0x00, 0x02, 0x00, 0x14]);
+    assert_eq!(
+        encoded,
+        vec![0x68, 0x16, 0x01, 0x01, 0x00, 0x02, 0x00, 0x14]
+    );
 }
 
 #[test]
@@ -106,15 +112,30 @@ fn encodes_ambient_with_voice_focus() {
         focus_on_voice: true,
     })
     .unwrap();
-    assert_eq!(encoded, vec![0x68, 0x16, 0x01, 0x01, 0x01, 0x02, 0x01, 0x0a]);
+    assert_eq!(
+        encoded,
+        vec![0x68, 0x16, 0x01, 0x01, 0x01, 0x02, 0x01, 0x0a]
+    );
 }
 
 #[test]
 fn round_trips_noise_control() {
     for control in [
-        NoiseControl { mode: AncMode::Off, ambient_level: 20, focus_on_voice: false },
-        NoiseControl { mode: AncMode::NoiseCancelling, ambient_level: 5, focus_on_voice: false },
-        NoiseControl { mode: AncMode::Ambient, ambient_level: 1, focus_on_voice: true },
+        NoiseControl {
+            mode: AncMode::Off,
+            ambient_level: 20,
+            focus_on_voice: false,
+        },
+        NoiseControl {
+            mode: AncMode::NoiseCancelling,
+            ambient_level: 5,
+            focus_on_voice: false,
+        },
+        NoiseControl {
+            mode: AncMode::Ambient,
+            ambient_level: 1,
+            focus_on_voice: true,
+        },
     ] {
         let mut encoded = set_noise_control(control).unwrap();
         // The setter and the return share a payload layout; only the opcode differs.
@@ -177,7 +198,10 @@ fn encodes_custom_bands() {
     // Recorded: 58 00 a1 06 0a 0a 0a 0a 0a 0a is flat on User 1.
     let encoded = set_eq_bands(
         EqPreset::User1,
-        EqBands { clear_bass: 0, bands: [0, 0, 0, 0, 0] },
+        EqBands {
+            clear_bass: 0,
+            bands: [0, 0, 0, 0, 0],
+        },
     )
     .unwrap();
     assert_eq!(
@@ -190,7 +214,10 @@ fn encodes_custom_bands() {
 fn encodes_the_full_band_range() {
     let encoded = set_eq_bands(
         EqPreset::User1,
-        EqBands { clear_bass: -10, bands: [10, -10, 0, 10, -10] },
+        EqBands {
+            clear_bass: -10,
+            bands: [10, -10, 0, 10, -10],
+        },
     )
     .unwrap();
     assert_eq!(
@@ -203,12 +230,18 @@ fn encodes_the_full_band_range() {
 fn rejects_out_of_range_bands() {
     assert!(set_eq_bands(
         EqPreset::User1,
-        EqBands { clear_bass: 0, bands: [11, 0, 0, 0, 0] },
+        EqBands {
+            clear_bass: 0,
+            bands: [11, 0, 0, 0, 0]
+        },
     )
     .is_err());
     assert!(set_eq_bands(
         EqPreset::User1,
-        EqBands { clear_bass: -11, bands: [0, 0, 0, 0, 0] },
+        EqBands {
+            clear_bass: -11,
+            bands: [0, 0, 0, 0, 0]
+        },
     )
     .is_err());
 }
@@ -253,14 +286,26 @@ fn dsee_request_matches_the_confirmed_opcode() {
 #[test]
 fn parses_dsee_off_and_on() {
     // Recorded: e7 00 00 when off, e7 00 01 when on.
-    assert!(!sony_api::commands::parse_dsee(&[0xe7, 0x00, 0x00]).unwrap().enabled);
-    assert!(sony_api::commands::parse_dsee(&[0xe7, 0x00, 0x01]).unwrap().enabled);
+    assert!(
+        !sony_api::commands::parse_dsee(&[0xe7, 0x00, 0x00])
+            .unwrap()
+            .enabled
+    );
+    assert!(
+        sony_api::commands::parse_dsee(&[0xe7, 0x00, 0x01])
+            .unwrap()
+            .enabled
+    );
 }
 
 #[test]
 fn parses_the_dsee_set_notification() {
     // Recorded: e8 00 01 is answered with e9 00 01.
-    assert!(sony_api::commands::parse_dsee(&[0xe9, 0x00, 0x01]).unwrap().enabled);
+    assert!(
+        sony_api::commands::parse_dsee(&[0xe9, 0x00, 0x01])
+            .unwrap()
+            .enabled
+    );
 }
 
 #[test]
@@ -279,7 +324,10 @@ fn rejects_a_short_dsee_reply() {
 
 #[test]
 fn voice_guidance_request_matches_the_confirmed_opcode() {
-    assert_eq!(sony_api::commands::voice_guidance_request(), vec![0x46, 0x01]);
+    assert_eq!(
+        sony_api::commands::voice_guidance_request(),
+        vec![0x46, 0x01]
+    );
 }
 
 #[test]
@@ -295,22 +343,44 @@ fn voice_guidance_rides_the_v2_command_table() {
 #[test]
 fn parses_voice_guidance_with_its_inverted_wire_value() {
     // Recorded: 47 01 00 01 while ENABLED, 47 01 01 01 while disabled.
-    assert!(sony_api::commands::parse_voice_guidance(&[0x47, 0x01, 0x00, 0x01]).unwrap().enabled);
-    assert!(!sony_api::commands::parse_voice_guidance(&[0x47, 0x01, 0x01, 0x01]).unwrap().enabled);
+    assert!(
+        sony_api::commands::parse_voice_guidance(&[0x47, 0x01, 0x00, 0x01])
+            .unwrap()
+            .enabled
+    );
+    assert!(
+        !sony_api::commands::parse_voice_guidance(&[0x47, 0x01, 0x01, 0x01])
+            .unwrap()
+            .enabled
+    );
 }
 
 #[test]
 fn parses_the_shorter_voice_guidance_notification() {
     // A set is answered with 49 01 <value> - one byte shorter than the return.
-    assert!(sony_api::commands::parse_voice_guidance(&[0x49, 0x01, 0x00]).unwrap().enabled);
-    assert!(!sony_api::commands::parse_voice_guidance(&[0x49, 0x01, 0x01]).unwrap().enabled);
+    assert!(
+        sony_api::commands::parse_voice_guidance(&[0x49, 0x01, 0x00])
+            .unwrap()
+            .enabled
+    );
+    assert!(
+        !sony_api::commands::parse_voice_guidance(&[0x49, 0x01, 0x01])
+            .unwrap()
+            .enabled
+    );
 }
 
 #[test]
 fn encodes_a_voice_guidance_change_inverted() {
     // Recorded: 48 01 01 01 disables, 48 01 00 01 enables.
-    assert_eq!(sony_api::commands::set_voice_guidance(false), vec![0x48, 0x01, 0x01, 0x01]);
-    assert_eq!(sony_api::commands::set_voice_guidance(true), vec![0x48, 0x01, 0x00, 0x01]);
+    assert_eq!(
+        sony_api::commands::set_voice_guidance(false),
+        vec![0x48, 0x01, 0x01, 0x01]
+    );
+    assert_eq!(
+        sony_api::commands::set_voice_guidance(true),
+        vec![0x48, 0x01, 0x00, 0x01]
+    );
 }
 
 // --- volume ------------------------------------------------------------------
@@ -323,20 +393,39 @@ fn volume_request_matches_the_confirmed_opcode() {
 #[test]
 fn parses_a_volume_reply() {
     // Recorded: a7 20 0f
-    assert_eq!(sony_api::commands::parse_volume(&[0xa7, 0x20, 0x0f]).unwrap().level, 15);
+    assert_eq!(
+        sony_api::commands::parse_volume(&[0xa7, 0x20, 0x0f])
+            .unwrap()
+            .level,
+        15
+    );
 }
 
 #[test]
 fn parses_the_volume_set_notification() {
     // Recorded: a8 20 0a is answered with a9 20 0a
-    assert_eq!(sony_api::commands::parse_volume(&[0xa9, 0x20, 0x0a]).unwrap().level, 10);
+    assert_eq!(
+        sony_api::commands::parse_volume(&[0xa9, 0x20, 0x0a])
+            .unwrap()
+            .level,
+        10
+    );
 }
 
 #[test]
 fn encodes_a_volume_change() {
-    assert_eq!(sony_api::commands::set_volume(10).unwrap(), vec![0xa8, 0x20, 0x0a]);
-    assert_eq!(sony_api::commands::set_volume(0).unwrap(), vec![0xa8, 0x20, 0x00]);
-    assert_eq!(sony_api::commands::set_volume(30).unwrap(), vec![0xa8, 0x20, 0x1e]);
+    assert_eq!(
+        sony_api::commands::set_volume(10).unwrap(),
+        vec![0xa8, 0x20, 0x0a]
+    );
+    assert_eq!(
+        sony_api::commands::set_volume(0).unwrap(),
+        vec![0xa8, 0x20, 0x00]
+    );
+    assert_eq!(
+        sony_api::commands::set_volume(30).unwrap(),
+        vec![0xa8, 0x20, 0x1e]
+    );
 }
 
 #[test]

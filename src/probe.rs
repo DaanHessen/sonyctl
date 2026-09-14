@@ -56,11 +56,17 @@ async fn open(
         .address
         .parse()
         .map_err(|_| SonyError::Detection(format!("bad address {}", device.address)))?;
-    let conn = SonyConnection::open(parsed, channel).await.map_err(busy_hint)?;
+    let conn = SonyConnection::open(parsed, channel)
+        .await
+        .map_err(busy_hint)?;
     // The RFCOMM socket reports connected slightly before it can carry data;
     // writing immediately yields ENOTCONN. Let it settle.
     tokio::time::sleep(Duration::from_millis(400)).await;
-    Ok((conn, format!("{} ({})", device.name, device.address), channel))
+    Ok((
+        conn,
+        format!("{} ({})", device.name, device.address),
+        channel,
+    ))
 }
 
 /// Send each payload in turn and print the reply.
@@ -120,7 +126,7 @@ pub async fn probe(
 /// Parse a hex string such as "2200" or "22 00" into bytes.
 pub fn parse_hex(input: &str) -> Result<Vec<u8>, SonyError> {
     let cleaned: String = input.chars().filter(|c| !c.is_whitespace()).collect();
-    if cleaned.len() % 2 != 0 {
+    if !cleaned.len().is_multiple_of(2) {
         return Err(SonyError::Detection(format!(
             "hex payload '{}' has an odd number of digits",
             input
@@ -148,7 +154,10 @@ pub async fn listen(
     let (mut conn, label, channel) = open(address).await?;
     conn.set_data_type(data_type);
     conn.set_timeout(Duration::from_millis(500));
-    println!("listening on {} channel {} for {:?}", label, channel, duration);
+    println!(
+        "listening on {} channel {} for {:?}",
+        label, channel, duration
+    );
 
     let start = tokio::time::Instant::now();
     let deadline = start + duration;

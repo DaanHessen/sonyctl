@@ -174,8 +174,7 @@ enum EqCommand {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "warn".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "warn".into()),
         )
         .init();
 
@@ -205,20 +204,23 @@ async fn main() -> Result<()> {
                 .iter()
                 .map(|hex| sony_api::probe::parse_hex(hex))
                 .collect::<Result<Vec<_>, _>>()?;
-            let data_type = sony_api::protocol::DataType::from_byte(
-                sony_api::probe::parse_hex(&data_type)?[0],
-            );
-            sony_api::probe::probe(address, parsed, Duration::from_millis(timeout_ms), data_type)
-                .await?;
+            let data_type =
+                sony_api::protocol::DataType::from_byte(sony_api::probe::parse_hex(&data_type)?[0]);
+            sony_api::probe::probe(
+                address,
+                parsed,
+                Duration::from_millis(timeout_ms),
+                data_type,
+            )
+            .await?;
         }
         Commands::Listen {
             address,
             seconds,
             data_type,
         } => {
-            let data_type = sony_api::protocol::DataType::from_byte(
-                sony_api::probe::parse_hex(&data_type)?[0],
-            );
+            let data_type =
+                sony_api::protocol::DataType::from_byte(sony_api::probe::parse_hex(&data_type)?[0]);
             sony_api::probe::listen(address, Duration::from_secs(seconds), data_type).await?;
         }
         Commands::Detect => print(api(&endpoint, Method::GET, "/api/detect", None::<()>).await?),
@@ -251,9 +253,9 @@ async fn main() -> Result<()> {
             print(connected(&endpoint, Method::GET, "/api/battery", None::<()>).await?)
         }
         Commands::Anc { action } => match action {
-            AncCommand::Get => print(
-                connected(&endpoint, Method::GET, "/api/noise-control", None::<()>).await?,
-            ),
+            AncCommand::Get => {
+                print(connected(&endpoint, Method::GET, "/api/noise-control", None::<()>).await?)
+            }
             AncCommand::Set { mode } => print(
                 connected(
                     &endpoint,
@@ -265,9 +267,9 @@ async fn main() -> Result<()> {
             ),
         },
         Commands::Ambient { action } => match action {
-            AmbientCommand::Get => print(
-                connected(&endpoint, Method::GET, "/api/noise-control", None::<()>).await?,
-            ),
+            AmbientCommand::Get => {
+                print(connected(&endpoint, Method::GET, "/api/noise-control", None::<()>).await?)
+            }
             AmbientCommand::Set {
                 level,
                 focus_on_voice,
@@ -300,9 +302,9 @@ async fn main() -> Result<()> {
             ),
         },
         Commands::VoiceGuidance { action } => match action {
-            ToggleCommand::Get => print(
-                connected(&endpoint, Method::GET, "/api/voice-guidance", None::<()>).await?,
-            ),
+            ToggleCommand::Get => {
+                print(connected(&endpoint, Method::GET, "/api/voice-guidance", None::<()>).await?)
+            }
             ToggleCommand::Set { enabled } => print(
                 connected(
                     &endpoint,
@@ -331,7 +333,9 @@ async fn main() -> Result<()> {
             ),
         },
         Commands::Eq { action } => match action {
-            EqCommand::Get => print(connected(&endpoint, Method::GET, "/api/eq", None::<()>).await?),
+            EqCommand::Get => {
+                print(connected(&endpoint, Method::GET, "/api/eq", None::<()>).await?)
+            }
             EqCommand::Set { preset } => print(
                 connected(
                     &endpoint,

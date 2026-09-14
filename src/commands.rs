@@ -3,6 +3,7 @@
 //! Every opcode and byte offset here is recorded in `docs/protocol.md` with
 //! the reply it was derived from. Nothing is inferred from other models.
 
+use crate::types::{DeviceInfo, Toggle, Volume, MAX_VOLUME};
 use crate::{
     error::SonyError,
     protocol::DataType,
@@ -11,7 +12,6 @@ use crate::{
         EQ_BAND_OFFSET, MAX_AMBIENT_LEVEL,
     },
 };
-use crate::types::{DeviceInfo, Toggle, Volume, MAX_VOLUME};
 
 /// Response opcodes each feature may answer with: the return, and the
 /// notification a set is acknowledged by. A reply whose first byte is not in
@@ -133,7 +133,9 @@ pub fn parse_eq(payload: &[u8]) -> Result<Equalizer, SonyError> {
         return Err(SonyError::InvalidFrame);
     }
     let band_count = payload[3] as usize;
-    let values = payload.get(4..4 + band_count).ok_or(SonyError::InvalidFrame)?;
+    let values = payload
+        .get(4..4 + band_count)
+        .ok_or(SonyError::InvalidFrame)?;
     if band_count != EQ_BAND_COUNT as usize {
         return Err(SonyError::InvalidFrame);
     }
@@ -177,7 +179,6 @@ pub fn set_eq_bands(preset: EqPreset, bands: EqBands) -> Result<Vec<u8>, SonyErr
     payload.extend(values);
     Ok(payload)
 }
-
 
 // --- DSEE / audio upsampling -------------------------------------------------
 
@@ -233,7 +234,6 @@ pub fn set_voice_guidance(enabled: bool) -> Vec<u8> {
     ]
 }
 
-
 // --- volume ------------------------------------------------------------------
 
 const VOLUME_GET: u8 = 0xa6;
@@ -259,7 +259,6 @@ pub fn set_volume(level: u8) -> Result<Vec<u8>, SonyError> {
     }
     Ok(vec![VOLUME_SET, VOLUME_TYPE, level])
 }
-
 
 // --- device info -------------------------------------------------------------
 //
