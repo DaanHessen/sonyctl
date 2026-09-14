@@ -1,4 +1,4 @@
-# Sony MDR protocol — confirmed commands
+# Sony MDR protocol. confirmed commands
 
 Everything below was confirmed against a live device. Nothing here is
 inferred from other models or from documentation.
@@ -23,8 +23,8 @@ Two command tables exist, distinguished by `dataType`:
 
 | dataType | Table |
 |---|---|
-| `0x0c` | v1 — carries battery, EQ, and noise control on this device |
-| `0x0e` | v2 — carries extended device info on this device |
+| `0x0c` | v1. carries battery, EQ, and noise control on this device |
+| `0x0e` | v2. carries extended device info on this device |
 
 The RFCOMM socket reports connected slightly before it can carry data;
 writing immediately returns `ENOTCONN`. A ~400 ms settle delay after connect
@@ -49,21 +49,21 @@ Supported function IDs reported by this device:
 |---|---|
 | `22 00` | `23 00 <percent> <charging>` |
 
-- `percent` — battery level, 0-100. Observed `0x57` = 87.
-- `charging` — `0x00` when not charging.
+- `percent`. battery level, 0-100. Observed `0x57` = 87.
+- `charging`. `0x00` when not charging.
 
 `22 01` returns `23 01 00 00 d8 c8` and `22 02` returns `23 02 00 00`. Neither
 carries a usable percentage on this model; only `22 00` is used.
 
 BlueZ's own `Battery Percentage` property is cached at connect time and drifts
-from this reading — the value here is the live one.
+from this reading. The value here is the live one.
 
 ## Noise control
 
-The inquired type is **`0x16`**. This is the byte that had to be discovered:
-the common `0x00`-`0x05` and `0x12`-`0x14` inquired types return nothing on
-this device, and the type was found by listening for the notification the
-headset emits when its own NC/AMBIENT button is pressed.
+The inquired type is `0x16`. This byte had to be discovered. The common
+`0x00` to `0x05` and `0x12` to `0x14` inquired types return nothing on this
+device. The working value came from listening for the notification the headset
+emits when its own NC/AMBIENT button is pressed.
 
 | Direction | Payload |
 |---|---|
@@ -74,7 +74,7 @@ headset emits when its own NC/AMBIENT button is pressed.
 
 | Byte | Meaning |
 |---|---|
-| `p0` | Always `0x01`. A set with `0x00` is rejected — the headset does not reply at all. |
+| `p0` | Always `0x01`. A set with `0x00` is rejected. the headset does not reply at all. |
 | `p1` | `0x00` noise control off, `0x01` on. Values above `0x01` are clamped to `0x01`. |
 | `p2` | `0x00` noise cancelling, `0x01` ambient sound. Forced to `0x00` whenever `p1` is `0x00`. |
 | `p3` | Always `0x02` (ambient level adjustment). |
@@ -92,17 +92,17 @@ The three reachable modes:
 Confirmed by pressing the headset's own NC/AMBIENT button, which emitted
 exactly these three states in the order noise cancelling → ambient → off.
 
-**Level range.** `0x00` is clamped by the headset to `0x01`. There is no upper
-clamp: `0x15`, `0x16` and even `0xff` are stored and echoed back verbatim.
-The Sony app's range is 0-20, so **sonyctl validates `0..=20` itself** — the
-device will otherwise happily sit in an undefined state.
+Level range: `0x00` is clamped by the headset to `0x01`. There is no upper
+clamp. `0x15`, `0x16` and even `0xff` are stored and echoed back unchanged.
+The Sony app's range is 0 to 20, so sonyctl validates that range itself.
+Otherwise the device sits in an undefined state.
 
 ### Set behaviour
 
-A set that writes values the headset already holds produces **no reply at
-all** — no return and no notification. Silence after a set therefore means
-"already applied", not "failed", and sonyctl reads the current state back
-instead of reporting a timeout.
+A set that writes values the headset already holds produces no reply at all:
+no return and no notification. Silence after a set therefore means the value
+was already applied, not that the write failed, so sonyctl reads the current
+state back instead of reporting a timeout.
 
 `p4` (focus on voice) and `p5` (level) are ignored unless `p2` is `0x01`. To
 change them while noise control is off, switch to ambient, write them, then
@@ -119,11 +119,11 @@ switch back.
 
 Observed state: `57 00 a1 06 14 0d 0c 0c 0d 0e`.
 
-- `preset` — see the table below. Observed `0xa1` (User 1).
-- `bandCount` — `0x06`: clear bass followed by five bands.
-- Each band value is **offset by 10**: the wire byte `0x00` is −10, `0x0a` is
-  0, and `0x14` is +10. The observed `14 0d 0c 0c 0d 0e` is therefore clear
-  bass +10, then +3, +2, +2, +3, +4.
+- `preset`. see the table below. Observed `0xa1` (User 1).
+- `bandCount`. `0x06`: clear bass followed by five bands.
+- Each band value is offset by 10. The wire byte `0x00` is -10, `0x0a` is 0,
+  and `0x14` is +10. The observed `14 0d 0c 0c 0d 0e` is therefore clear bass
+  +10, then +3, +2, +2, +3, +4.
 
 Band frequencies, from the `5a 00` reply: 400 Hz (`0x0190`), 1 kHz
 (`0x03e8`), 2.5 kHz (`0x09c4`), 6.3 kHz (`0x189c`), 16 kHz (`0x3e80`), plus
@@ -160,7 +160,7 @@ is not decoded.
 
 ## Voice guidance
 
-The only command found so far that rides the **v2 table** (`dataType` `0x0e`).
+The only command found so far that rides the v2 table (`dataType` `0x0e`).
 Sending it on the v1 table returns nothing, which is why an earlier v1-only
 sweep missed it.
 
@@ -171,7 +171,7 @@ sweep missed it.
 | Set | `48 01 <value> 01` |
 | Notify | `49 01 <value>` |
 
-**The value is inverted**: `0x00` means enabled, `0x01` means disabled.
+The value is inverted: `0x00` means enabled, `0x01` means disabled.
 Confirmed by disabling, reading back, and re-enabling.
 
 Note that enabling this does **not** make the headset announce noise-control
