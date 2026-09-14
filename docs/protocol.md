@@ -97,6 +97,17 @@ clamp: `0x15`, `0x16` and even `0xff` are stored and echoed back verbatim.
 The Sony app's range is 0-20, so **sonyctl validates `0..=20` itself** — the
 device will otherwise happily sit in an undefined state.
 
+### Set behaviour
+
+A set that writes values the headset already holds produces **no reply at
+all** — no return and no notification. Silence after a set therefore means
+"already applied", not "failed", and sonyctl reads the current state back
+instead of reporting a timeout.
+
+`p4` (focus on voice) and `p5` (level) are ignored unless `p2` is `0x01`. To
+change them while noise control is off, switch to ambient, write them, then
+switch back.
+
 ## Equalizer
 
 | Direction | Payload |
@@ -143,4 +154,13 @@ in sonyctl depends on them:
 `52 00`, `62 00`, `70 00`, `74 00`, `78 00`, `80 00`, `82 00`, `86 00`,
 `b0 00`, `d2 00`, `e2 00`, `e6 00`, `e8 00`, and `30 00`/`32 00` on table v2.
 
-The EQ setter (`58 …`) has not yet been confirmed — see Task 8.
+### Set
+
+| Purpose | Payload |
+|---|---|
+| Select a preset | `58 00 <preset> 00` |
+| Write custom bands | `58 00 <preset> 06 <6 offset bytes>` |
+
+A set is answered with a **notification** (`59 …`), not a return (`57 …`), so
+both opcodes decode with the same layout. Band writes are only accepted by
+the customizable presets `0xa0`, `0xa1` and `0xa2`.

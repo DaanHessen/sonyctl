@@ -30,6 +30,8 @@ const ASM_SETTING_LEVEL: u8 = 0x02;
 // Equalizer
 const EQ_GET: u8 = 0x56;
 const EQ_RET: u8 = 0x57;
+/// A set is answered with a notification rather than a return.
+const EQ_NTFY: u8 = 0x59;
 const EQ_SET: u8 = 0x58;
 const EQ_TYPE: u8 = 0x00;
 const EQ_BAND_COUNT: u8 = 0x06;
@@ -108,7 +110,7 @@ pub fn eq_request() -> Vec<u8> {
 }
 
 pub fn parse_eq(payload: &[u8]) -> Result<Equalizer, SonyError> {
-    if payload.len() < 4 || payload[0] != EQ_RET {
+    if payload.len() < 4 || !matches!(payload[0], EQ_RET | EQ_NTFY) {
         return Err(SonyError::InvalidFrame);
     }
     let band_count = payload[3] as usize;

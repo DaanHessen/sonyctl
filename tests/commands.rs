@@ -234,3 +234,11 @@ fn maps_every_confirmed_preset_id() {
         assert_eq!(preset.to_byte(), byte);
     }
 }
+
+#[test]
+fn parses_the_notification_a_set_replies_with() {
+    // Recorded: 58 00 16 00 is answered with 59 00 16 06 11 0a 0a 0a 0a 0a
+    let eq = parse_eq(&[0x59, 0x00, 0x16, 0x06, 0x11, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a]).unwrap();
+    assert_eq!(eq.preset, EqPreset::Bass);
+    assert_eq!(eq.bands.clear_bass, 7);
+}
