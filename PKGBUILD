@@ -1,6 +1,6 @@
 # Maintainer: Daan Hessen <daanh2002@gmail.com>
 pkgname=sonyctl
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="A Rust API/CLI that allows every device on your network to control your Sony headphones"
 arch=('x86_64')
