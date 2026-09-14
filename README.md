@@ -139,6 +139,7 @@ sonyctl status
 sonyctl anc set noise_cancelling
 sonyctl ambient set 12 --focus-on-voice true
 sonyctl eq set bass
+sonyctl volume set 12
 sonyctl dsee set true
 ```
 
@@ -159,6 +160,7 @@ The CLI opens a session by itself, so no connect step is needed.
 | `sonyctl ambient get\|set <0-20> [--focus-on-voice <bool>]` | Ambient level and voice focus |
 | `sonyctl eq get\|set <preset>` | `off`, `bright`, `excited`, `mellow`, `relaxed`, `vocal`, `treble`, `bass`, `speech`, `custom`, `user1`, `user2` |
 | `sonyctl eq bands --clear-bass <n> --bands <b1,...,b5>` | Custom bands, each between -10 and 10 |
+| `sonyctl volume get\|set <0-30>` | Playback volume |
 | `sonyctl dsee get\|set <bool>` | DSEE Extreme upscaling |
 | `sonyctl voice-guidance get\|set <bool>` | Spoken notifications |
 | `sonyctl completions <shell>` | Print a completion script |
@@ -181,6 +183,7 @@ already holds, so switching to ambient and back does not quietly reset them.
 | GET, POST | `/api/noise-control` | `{"mode":"ambient","ambient_level":10,"focus_on_voice":false}` | Noise control |
 | GET, POST | `/api/eq` | `{"preset":"bass"}` | Equalizer |
 | POST | `/api/eq/bands` | `{"clear_bass":4,"bands":[2,0,-1,3,5]}` | Equalizer |
+| GET, POST | `/api/volume` | `{"level":15}` | Volume |
 | GET, POST | `/api/dsee` | `{"enabled":true}` | Toggle |
 | GET, POST | `/api/voice-guidance` | `{"enabled":true}` | Toggle |
 
@@ -252,13 +255,17 @@ systemctl --user stop sonyctl
 - [x] Battery
 - [x] Noise control, ambient level, focus on voice
 - [x] Equalizer presets and custom bands
+- [x] Playback volume
 - [x] DSEE Extreme
 - [x] Voice guidance on and off
 - [x] HTTP API, systemd unit, waybar module
-- [ ] Speak-to-Chat, automatic power off, button assignment (opcodes located, fields not yet decoded)
+- [ ] Automatic power off (opcode located, fields not yet decoded)
 - [ ] Multipoint and 360 Reality Audio
-- [ ] Tagged release and AUR package
 - [ ] Verification on a second Sony model
+
+Button assignment and voice assistant selection answer a read on this model but
+reject every write, and Speak-to-Chat is absent from it entirely, so none of
+the three is exposed. `docs/protocol.md` records what each returns.
 
 An open question: the headset announces the mode aloud when its own button is
 pressed, but stays silent when the mode is set over the protocol. The effect
