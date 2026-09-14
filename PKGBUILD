@@ -9,17 +9,19 @@ license=('AGPL-3.0-or-later')
 depends=('dbus' 'bluez' 'bluez-utils')
 # sdptool, used to resolve the vendor RFCOMM channel.
 optdepends=('bluez-deprecated-tools: RFCOMM channel auto-detection')
+install=sonyctl.install
 makedepends=('cargo')
-options=('!lto')
+options=('!lto' '!debug')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('afce482ea3f71aa2f64c30303ca71b924ab5ee9a6488811bb363c1b519f6a764')
 
 build() {
   cd "${pkgname}-${pkgver}"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
-  # Explicitly disable LTO in RUSTFLAGS to ensure ring links correctly
-  export RUSTFLAGS="-C lto=off"
+  # Disable LTO so ring links correctly, and remap the build path so the
+  # binary carries no reference to $srcdir.
+  export RUSTFLAGS="-C lto=off --remap-path-prefix=$srcdir=/"
   cargo build --release --locked --all-features
 }
 
