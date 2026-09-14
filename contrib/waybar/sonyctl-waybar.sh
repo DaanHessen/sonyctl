@@ -34,10 +34,12 @@ LOW_BATTERY=20
 CRITICAL_BATTERY=10
 mkdir -p "$STATE_DIR"
 
-ICON_ANC="󱡏"
-ICON_OFF="󱡒"
-ICON_AMBIENT="󰋋"
-ICON_OFFLINE="󱡑"
+# Headphone-family glyphs throughout - these are over-ear headphones, not
+# earbuds. earctl owns the earbud glyphs (U+F184F and friends).
+ICON_ANC="󰋋"       # nf-md-headphones
+ICON_AMBIENT="󰋎"   # nf-md-headset, mic boom reads as "letting sound in"
+ICON_OFF="󰟎"       # nf-md-headphones-off, slashed
+ICON_OFFLINE="󰋍"   # nf-md-headphones-settings, trailing dots read as "waiting"
 ICON_CHARGING="󱐋"
 
 # --- helpers ------------------------------------------------------------------

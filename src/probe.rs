@@ -136,11 +136,15 @@ pub async fn listen(
     conn.set_timeout(Duration::from_millis(500));
     println!("listening on {} channel {} for {:?}", label, channel, duration);
 
-    let deadline = tokio::time::Instant::now() + duration;
+    let start = tokio::time::Instant::now();
+    let deadline = start + duration;
     while tokio::time::Instant::now() < deadline {
         match conn.recv().await {
+            // Elapsed seconds let a capture be lined up against a script of
+            // physical actions performed on the headset.
             Ok(frame) => println!(
-                "   {:02x} | {:<40} |{}|",
+                "  t+{:>5.1}s  {:02x} | {:<32} |{}|",
+                start.elapsed().as_secs_f32(),
                 frame.data_type.to_byte(),
                 format_hex(&frame.payload),
                 format_ascii(&frame.payload)
