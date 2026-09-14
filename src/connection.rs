@@ -24,6 +24,9 @@ pub struct SonyConnection<S> {
     buffer: Vec<u8>,
     /// Sequence number for the next frame we send. Toggles 0/1 per send.
     tx_seq: u8,
+    /// Frame data type used for outbound commands. Sony's v1 command table
+    /// rides `DataMdr`; the v2 table rides `DataMdrNo2`.
+    data_type: DataType,
     timeout: Duration,
     broken: Arc<AtomicBool>,
 }
@@ -37,9 +40,14 @@ where
             stream,
             buffer: Vec::with_capacity(READ_CHUNK),
             tx_seq: 0,
+            data_type: DataType::DataMdr,
             timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS),
             broken: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub fn set_data_type(&mut self, data_type: DataType) {
+        self.data_type = data_type;
     }
 
     pub fn set_timeout(&mut self, timeout: Duration) {
@@ -54,7 +62,7 @@ where
 
     /// Send a data frame and wait for the headset to acknowledge it.
     pub async fn send(&mut self, payload: Vec<u8>) -> Result<(), SonyError> {
-        let frame = Frame::new(DataType::DataMdr, self.tx_seq, payload);
+        let frame = Frame::new(self.data_type, self.tx_seq, payload);
         self.write_frame(&frame).await?;
 
         let deadline = time::Instant::now() + self.timeout;

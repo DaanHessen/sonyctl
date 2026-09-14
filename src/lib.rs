@@ -1,6 +1,7 @@
 pub mod bluetooth;
 pub mod connection;
 pub mod error;
+pub mod probe;
 pub mod protocol;
 
 pub use bluetooth::{BluetoothDevice, SONY_SPP_UUID};
